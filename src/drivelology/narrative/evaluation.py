@@ -119,6 +119,7 @@ def print_statistics(results: List[EvaluationResult]):
     """
     geval_scores = [r.geval_score for r in results if r.geval_score is not None]
     bert_f1_scores = [r.bert_f1 for r in results if r.bert_f1 is not None]
+    bert_recall_scores = [r.bert_recall for r in results if r.bert_recall is not None]
     
     console.log(f"===== Results Statistics =====")
     console.log(f"Total processed samples: {len(results)}")
@@ -139,6 +140,15 @@ def print_statistics(results: List[EvaluationResult]):
         console.log(f"  Max: {max(bert_f1_scores):.6f}")
         console.log(f"  Min: {min(bert_f1_scores):.6f}")
         console.log(f"  Count: {len(bert_f1_scores)}")
+    else:
+        console.log(f"BERTScore: No scores available")
+    
+    if bert_recall_scores:
+        console.log(f"BERTScore Recall Statistics:")
+        console.log(f"  Mean: {sum(bert_recall_scores) / len(bert_recall_scores):.6f}")
+        console.log(f"  Max: {max(bert_recall_scores):.6f}")
+        console.log(f"  Min: {min(bert_recall_scores):.6f}")
+        console.log(f"  Count: {len(bert_recall_scores)}")
     else:
         console.log(f"BERTScore: No scores available")
     
