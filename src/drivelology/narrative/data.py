@@ -260,7 +260,7 @@ def get_result_filepath(output_dir: str,
         Full path to save results
     """
     llm_name = str(llm_model).split('/')[-1].replace(':', '-')
-    filename = f"gen_{llm_name}_prompt_{generation_version}_eval_{evaluation_version}.tsv"
+    filename = f"{llm_name}_prompt_{generation_version}_eval_{evaluation_version}.tsv"
     return os.path.join(output_dir, filename)
 
 
