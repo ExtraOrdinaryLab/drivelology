@@ -1,0 +1,9 @@
+pandas==2.2.3
+simplemind==0.3.3
+datasets==3.6.0
+scikit-learn==1.6.1
+python-dotenv==1.1.0
+rich==13.9.4
+instructor==1.7.9
+gpustat==1.1.1
+bert-score==0.3.13
