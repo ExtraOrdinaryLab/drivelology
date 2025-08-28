@@ -98,13 +98,28 @@ def run_evaluation_pipeline(
     # Create output directory
     setup_output_directory(output_dir)
     
-    # Set up result file path and check processed IDs
+    # Set up result file path
     result_filepath = get_result_filepath(
         output_dir, llm_model, generation_version, evaluation_version
     )
-    processed_ids = get_processed_ids(result_filepath)
     
+    # Load all existing results and identify those that need BERTScore evaluation
+    existing_results = []
+    if os.path.exists(result_filepath):
+        existing_results = load_processed_results(result_filepath)
+        console.log(f"Loaded {len(existing_results)} existing results from file")
+    
+    processed_ids = {result.id for result in existing_results}
     console.log(f"Found {len(processed_ids)} already processed samples")
+    
+    # Identify results that need BERTScore evaluation
+    results_missing_bertscore = [
+        result for result in existing_results 
+        if result.bert_f1 is None or result.bert_precision is None or result.bert_recall is None
+    ]
+    
+    if results_missing_bertscore:
+        console.log(f"Found {len(results_missing_bertscore)} processed samples that need BERTScore evaluation")
     
     # Whether header needs to be written
     write_header = not os.path.exists(result_filepath)
@@ -117,10 +132,10 @@ def run_evaluation_pipeline(
         PromptType.NARRATIVE_EVALUATION, evaluation_version
     )
     
-    results = []
+    new_results = []
     pending_bert_evaluation = []  # Results awaiting BERTScore evaluation
     
-    # Generate narratives and collect results
+    # Generate narratives and collect results for new samples
     for index, row in df.iterrows():
         text_id = str(row['id'])
         
@@ -161,8 +176,9 @@ def run_evaluation_pipeline(
         )
         
         # Add result to collections
-        results.append(result)
+        new_results.append(result)
         pending_bert_evaluation.append(result)
+        processed_ids.add(text_id)
         
         # Immediately write result with G-Eval score
         append_result(result_filepath, result, write_header)
@@ -173,28 +189,39 @@ def run_evaluation_pipeline(
         console.log(f"Result saved to {result_filepath}")
         console.log("=" * 100)
         
-        # Batch BERTScore evaluation
+        # Batch BERTScore evaluation for new results
         if len(pending_bert_evaluation) >= bertscore_batch_size:
             update_results_with_bertscore(pending_bert_evaluation, language_code, result_filepath)
             pending_bert_evaluation = []
     
-    # Process remaining BERTScore evaluations
+    # Process remaining BERTScore evaluations for new results
     if pending_bert_evaluation:
         update_results_with_bertscore(pending_bert_evaluation, language_code, result_filepath)
     
-    # If no new results but file exists, load all results from file
-    if not results and os.path.exists(result_filepath):
-        console.log("All samples have been processed. Loading results from file...")
-        results = load_processed_results(result_filepath)
-        console.log(f"Loaded {len(results)} processed results from file")
+    # Process BERTScore for existing results that are missing it
+    if results_missing_bertscore:
+        console.log(f"Processing BERTScore for {len(results_missing_bertscore)} existing samples that are missing it...")
+        # Process in batches
+        for i in range(0, len(results_missing_bertscore), bertscore_batch_size):
+            batch = results_missing_bertscore[i:i+bertscore_batch_size]
+            update_results_with_bertscore(batch, language_code, result_filepath)
+            console.log(f"Processed BERTScore batch {i//bertscore_batch_size + 1}/{(len(results_missing_bertscore)-1)//bertscore_batch_size + 1}")
+    
+    # Load all results for statistics
+    all_results = []
+    if os.path.exists(result_filepath):
+        all_results = load_processed_results(result_filepath)
+        console.log(f"Loaded {len(all_results)} total results for analysis")
+    else:
+        all_results = new_results
     
     # Print statistics
-    if results:
-        print_statistics(results)
+    if all_results:
+        print_statistics(all_results)
     else:
         console.log("No results to analyze")
     
-    return results
+    return all_results
 
 
 def main():
@@ -210,6 +237,26 @@ def main():
         
         if os.path.exists(result_filepath):
             results = load_processed_results(result_filepath)
+            
+            # Check if any results are missing BERTScore
+            results_missing_bertscore = [
+                result for result in results 
+                if result.bert_f1 is None or result.bert_precision is None or result.bert_recall is None
+            ]
+            
+            if results_missing_bertscore:
+                console.log(f"Found {len(results_missing_bertscore)} samples missing BERTScore evaluation")
+                language_code = extract_language_code(args.generation_version)
+                
+                # Process in batches
+                for i in range(0, len(results_missing_bertscore), args.bertscore_batch_size):
+                    batch = results_missing_bertscore[i:i+args.bertscore_batch_size]
+                    update_results_with_bertscore(batch, language_code, result_filepath)
+                    console.log(f"Processed BERTScore batch {i//args.bertscore_batch_size + 1}/{(len(results_missing_bertscore)-1)//args.bertscore_batch_size + 1}")
+                
+                # Reload results after updating BERTScores
+                results = load_processed_results(result_filepath)
+            
             print_statistics(results)
         else:
             console.log(f"[ERROR] Results file not found: {result_filepath}")
