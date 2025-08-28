@@ -9,6 +9,9 @@ from enum import Enum
 from typing import Dict
 from dataclasses import dataclass
 
+# Constants
+MAX_RETRIES = 10
+
 
 class Language(Enum):
     """
@@ -272,7 +275,3 @@ Please provide the output in JSON format with the following key:
                 continue
             filtered_prompts[key] = prompt
         return filtered_prompts
-
-
-# Constants
-MAX_RETRIES = 5
