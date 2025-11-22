@@ -2,6 +2,8 @@
 
 This repository contains the code and resources for the paper "Drivel-ology: Challenging LLMs with Interpreting Nonsense with Depth," accepted at EMNLP 2025.
 
+> **Update:** Drivelology is now officially supported by `evalscope`! This is now the recommended way to run evaluations. Please refer to [here](https://github.com/modelscope/evalscope/pull/927). The original execution scripts are kept for legacy purposes.
+
 ## Setup
 
 ```bash
